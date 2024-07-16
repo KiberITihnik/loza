@@ -141,6 +141,15 @@ class ElementManager {
 //для видимости для вызоваe lementManager.deleteElement
 let elementManager;
 
+document.getElementById('element-image').addEventListener('change', function(event) {
+    const fileInfo = document.getElementById('file-info');
+    const file = event.target.files[0];
+
+    if (file) {
+        fileInfo.textContent = 'Загружен файл: ' + file.name;
+    }
+});
+
 BX.ready(function() {
     elementManager = new ElementManager('add-element-btn', 'element-title', 'element-description', 'element-image', 'loza_iblock');
 });

@@ -41,11 +41,12 @@ $this->addExternalCss($templateFolder . '/assets/styles.css');
                 <div class="ui-form-label">
                     <div class="ui-ctl-label-text">Изображение анонса</div>
                 </div>
-                <div class="ui-form-content">
+                <div class="ui-form-content" style="display: block">
                     <label class="ui-ctl ui-ctl-file-btn">
                         <input type="file" class="ui-ctl-element" id="element-image">
                         <div class="ui-ctl-label-text">Добавить фотографию</div>
                     </label>
+                    <div id="file-info" style="margin-top: 10px;"></div>
                 </div>
             </div>
         </div>

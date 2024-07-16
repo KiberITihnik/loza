@@ -9,6 +9,8 @@ use Bitrix\Main\Engine\ActionFilter;
 use Bitrix\Main\Engine\Contract\Controllerable;
 use Bitrix\Main\Context;
 
+use Bitrix\Main\Type\ParameterDictionary;
+use CIBlockElement;
 class ComplexLozaComponent extends \CBitrixComponent implements Controllerable
 {
     private $iblockCode;
@@ -19,49 +21,6 @@ class ComplexLozaComponent extends \CBitrixComponent implements Controllerable
         return $arParams;
     }
 
-    /*public function executeComponent()
-    {
-        if (!$this->includeIblockModule()) {
-            return;
-        }
-
-        $iblockId = $this->getIblockId($this->arParams["IBLOCK_CODE"]);
-        if (!$iblockId) {
-            ShowError("Инфоблок с символьным кодом {$this->arParams['IBLOCK_CODE']} не найден");
-            return;
-        }
-
-        $this->arResult = [];
-        $this->arResult['GRID']['ID'] = 'loza_iblock';
-
-        $gridOptions = new Bitrix\Main\Grid\Options($this->arResult['GRID']['ID']);
-        $sort = $gridOptions->GetSorting(['sort' => ['ID' => 'DESC'], 'vars' => ['by' => 'by', 'order' => 'order']]);
-        $navParams = $gridOptions->GetNavParams();
-        $nav = new Bitrix\Main\UI\PageNavigation($this->arResult['GRID']['ID']);
-        $this->arResult['NAV'] = $nav;
-        $this->arResult['NAV']->allowAllRecords(false)
-            ->setPageSize($navParams['nPageSize'])
-            ->initFromUri();
-
-        $this->arResult['COLUMNS'] = self::getColumn();
-
-        $cache = Bitrix\Main\Data\Cache::createInstance();
-        $cacheId = 'loza_iblock_elements_' . $iblockId;
-        $cachePath = '/loza/';
-
-        if ($cache->initCache($this->cacheTime, $cacheId, $cachePath)) {
-            $this->arResult['ROW'] = $cache->getVars();
-        } elseif ($cache->startDataCache()) {
-            $this->arResult['ROW'] = $this->getIblockElements($iblockId, $this->iblockCode);
-            if (empty($this->arResult['ROW'])) {
-                $cache->abortDataCache();
-            } else {
-                $cache->endDataCache($this->arResult['ROW']);
-            }
-        }
-
-        $this->includeComponentTemplate();
-    }*/
     public function executeComponent()
     {
         if (!$this->includeIblockModule()) {
@@ -162,9 +121,43 @@ class ComplexLozaComponent extends \CBitrixComponent implements Controllerable
             return ['success' => false, 'error' => 'Info block not found'];
         }
 
-        $elementId = $this->addElement($iblockId, $formData, $fileData);
+        try {
+            $elementId = $this->addElement($iblockId, $formData, $fileData);
+            file_put_contents($_SERVER["DOCUMENT_ROOT"] . "/local/log/loza/addElementAction.log",'Элемент успешно добавлен с ID: ' . print_r($elementId, true), FILE_APPEND);
+        } catch (\Exception $e) {
+            file_put_contents($_SERVER["DOCUMENT_ROOT"] . "/local/log/loza/addElementAction.log", 'Ошибка: ' . print_r($e->getMessage(), true), FILE_APPEND);
+        }
         $this->clearCache();
         return ['success' => true, 'elementId' => $elementId];
+    }
+
+    public function addElement($iblockId, ParameterDictionary $formData, ParameterDictionary $fileData) {
+        if (!Loader::includeModule('iblock')) {
+            throw new \Exception('Модуль инфоблоков не загружен');
+        }
+
+        $fields = array(
+            'IBLOCK_ID' => $iblockId,
+            'NAME' => $formData['NAME'],
+            'ACTIVE' => 'Y',
+            'PROPERTY_VALUES' => array(
+                'DESCRIPTION' => $formData['DESCRIPTION'],
+            ),
+        );
+
+        if (isset($fileData['IMAGE']) && $fileData['IMAGE']['error'] === 0) {
+            $fields['PROPERTY_VALUES']['IMAGE'] = CFile::MakeFileArray($fileData['IMAGE']['tmp_name']);
+            $fields['PROPERTY_VALUES']['IMAGE']['name'] = $fileData['IMAGE']['name'];
+        }
+
+        $el = new CIBlockElement();
+        $elementId = $el->Add($fields);
+
+        if (!$elementId) {
+            throw new \Exception('Ошибка добавления элемента: ' . $el->LAST_ERROR);
+        }
+
+        return $elementId;
     }
 
     public function deleteElementAction($elementId, $sessid)
